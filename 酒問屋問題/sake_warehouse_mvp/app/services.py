@@ -161,3 +161,83 @@ def allocate_request(db: Session, request_no: str, idempotency_key: Optional[str
         shortage_qty=req.shortage_qty,
         picks=result_lines,
     )
+
+
+def _build_work_order_view(db: Session, req: models.Request, work_order: models.WorkOrder) -> schemas.WorkOrderView:
+    lines = db.execute(
+        select(models.WorkOrderLine).where(models.WorkOrderLine.work_order_id == work_order.id)
+    ).scalars().all()
+    picks = [
+        schemas.AllocationLine(container_no=x.container_no, item_code=x.item_code, qty=x.qty)
+        for x in lines
+    ]
+
+    empty_marks: list[str] = []
+    for container_no in sorted({x.container_no for x in lines}):
+        remaining = db.execute(
+            select(models.ContainerLine).where(models.ContainerLine.container_no == container_no)
+        ).scalars().all()
+        if remaining and all(x.qty == 0 for x in remaining):
+            empty_marks.append(container_no)
+
+    return schemas.WorkOrderView(
+        request_no=req.request_no,
+        destination=req.destination,
+        picks=picks,
+        empty_container_marks=empty_marks,
+    )
+
+
+def issue_work_order(
+    db: Session,
+    request_no: str,
+    idempotency_key: Optional[str],
+    actor: str,
+) -> schemas.WorkOrderView:
+    req = db.get(models.Request, request_no)
+    if not req:
+        raise HTTPException(status_code=404, detail="request not found")
+    if req.state not in {"allocated", "instructed"}:
+        raise HTTPException(status_code=409, detail="not allocated")
+
+    if not _reserve_idempotency(db, idempotency_key, "issue_work_order", request_no):
+        existing = db.execute(
+            select(models.WorkOrder).where(models.WorkOrder.request_no == request_no)
+        ).scalar_one_or_none()
+        if existing:
+            return _build_work_order_view(db, req, existing)
+
+    existing = db.execute(
+        select(models.WorkOrder).where(models.WorkOrder.request_no == request_no)
+    ).scalar_one_or_none()
+    if existing:
+        before = req.state
+        req.state = "instructed"
+        req.updated_at = datetime.utcnow()
+        _audit(db, actor, "workorder.issued", req.request_no, before, req.state)
+        db.commit()
+        return _build_work_order_view(db, req, existing)
+
+    allocs = db.execute(
+        select(models.Allocation).where(models.Allocation.request_no == request_no)
+    ).scalars().all()
+    work_order = models.WorkOrder(request_no=request_no, created_at=datetime.utcnow())
+    db.add(work_order)
+    db.flush()
+    for alloc in allocs:
+        db.add(
+            models.WorkOrderLine(
+                work_order_id=work_order.id,
+                container_no=alloc.container_no,
+                item_code=alloc.item_code,
+                qty=alloc.qty,
+            )
+        )
+
+    before = req.state
+    req.state = "instructed"
+    req.updated_at = datetime.utcnow()
+    _audit(db, actor, "workorder.issued", req.request_no, before, req.state)
+    db.commit()
+
+    return _build_work_order_view(db, req, work_order)

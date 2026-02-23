@@ -60,6 +60,16 @@ def allocate_request(
     return services.allocate_request(session, request_no, x_idempotency_key, x_actor)
 
 
+@app.post("/requests/{request_no}/work-orders", response_model=schemas.WorkOrderView, status_code=201)
+def issue_work_order(
+    request_no: str,
+    x_idempotency_key: Optional[str] = Header(default=None, alias="X-Idempotency-Key"),
+    x_actor: str = Header(default="system", alias="X-Actor"),
+    session: Session = Depends(db.get_db),
+):
+    return services.issue_work_order(session, request_no, x_idempotency_key, x_actor)
+
+
 @app.get("/requests/{request_no}", response_model=schemas.RequestView)
 def get_request(request_no: str, session: Session = Depends(db.get_db)):
     req = session.get(models.Request, request_no)

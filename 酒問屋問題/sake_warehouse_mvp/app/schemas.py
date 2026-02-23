@@ -32,3 +32,10 @@ class AllocationResult(BaseModel):
     allocated_qty: int
     shortage_qty: int
     picks: list[AllocationLine]
+
+
+class WorkOrderView(BaseModel):
+    request_no: str
+    destination: str
+    picks: list[AllocationLine]
+    empty_container_marks: list[str]

@@ -65,6 +65,26 @@ class Shortage(Base):
     shortage_qty: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class WorkOrder(Base):
+    __tablename__ = "work_orders"
+    __table_args__ = (UniqueConstraint("request_no", name="uq_work_order_request"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_no: Mapped[str] = mapped_column(ForeignKey("requests.request_no"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class WorkOrderLine(Base):
+    __tablename__ = "work_order_lines"
+    __table_args__ = (UniqueConstraint("work_order_id", "container_no", "item_code", name="uq_work_order_line"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    work_order_id: Mapped[int] = mapped_column(ForeignKey("work_orders.id"), nullable=False)
+    container_no: Mapped[str] = mapped_column(ForeignKey("containers.container_no"), nullable=False)
+    item_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    qty: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 
