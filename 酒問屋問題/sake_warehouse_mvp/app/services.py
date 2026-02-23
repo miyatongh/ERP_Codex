@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,10 +13,10 @@ def _audit(
     db: Session,
     actor: str,
     event_type: str,
-    request_no: str | None,
-    before_state: str | None,
-    after_state: str | None,
-    reason_code: str | None = None,
+    request_no: Optional[str],
+    before_state: Optional[str],
+    after_state: Optional[str],
+    reason_code: Optional[str] = None,
 ):
     db.add(
         models.AuditEvent(
@@ -29,7 +30,7 @@ def _audit(
     )
 
 
-def _reserve_idempotency(db: Session, key: str | None, scope: str, request_no: str | None = None) -> bool:
+def _reserve_idempotency(db: Session, key: Optional[str], scope: str, request_no: Optional[str] = None) -> bool:
     if not key:
         return True
     exists = db.execute(
@@ -41,7 +42,7 @@ def _reserve_idempotency(db: Session, key: str | None, scope: str, request_no: s
     return True
 
 
-def create_request(db: Session, payload: schemas.CreateRequestInput, idempotency_key: str | None, actor: str) -> models.Request:
+def create_request(db: Session, payload: schemas.CreateRequestInput, idempotency_key: Optional[str], actor: str) -> models.Request:
     if not _reserve_idempotency(db, idempotency_key, "create_request", payload.request_no):
         existing = db.get(models.Request, payload.request_no)
         if existing:
@@ -84,7 +85,7 @@ def validate_request(db: Session, request_no: str, actor: str) -> models.Request
     return req
 
 
-def allocate_request(db: Session, request_no: str, idempotency_key: str | None, actor: str) -> schemas.AllocationResult:
+def allocate_request(db: Session, request_no: str, idempotency_key: Optional[str], actor: str) -> schemas.AllocationResult:
     req = db.get(models.Request, request_no)
     if not req:
         raise HTTPException(status_code=404, detail="request not found")

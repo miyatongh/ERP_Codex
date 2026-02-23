@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import (
     DateTime,
     ForeignKey,
@@ -70,11 +71,11 @@ class AuditEvent(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     actor: Mapped[str] = mapped_column(String(128), nullable=False)
-    request_no: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    request_no: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    before_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    after_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    before_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    after_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    reason_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class IdempotencyKey(Base):
@@ -84,4 +85,4 @@ class IdempotencyKey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     key: Mapped[str] = mapped_column(String(128), nullable=False)
     scope: Mapped[str] = mapped_column(String(64), nullable=False)
-    request_no: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    request_no: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

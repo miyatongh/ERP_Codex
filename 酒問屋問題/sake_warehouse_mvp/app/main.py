@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import Depends, FastAPI, Header, HTTPException
 from sqlalchemy.orm import Session
 
@@ -16,7 +18,7 @@ def _startup():
 @app.post("/requests", response_model=schemas.RequestView, status_code=201)
 def create_request(
     payload: schemas.CreateRequestInput,
-    x_idempotency_key: str | None = Header(default=None, alias="X-Idempotency-Key"),
+    x_idempotency_key: Optional[str] = Header(default=None, alias="X-Idempotency-Key"),
     x_actor: str = Header(default="system", alias="X-Actor"),
     session: Session = Depends(db.get_db),
 ):
@@ -51,7 +53,7 @@ def validate_request(
 @app.post("/requests/{request_no}/allocate", response_model=schemas.AllocationResult)
 def allocate_request(
     request_no: str,
-    x_idempotency_key: str | None = Header(default=None, alias="X-Idempotency-Key"),
+    x_idempotency_key: Optional[str] = Header(default=None, alias="X-Idempotency-Key"),
     x_actor: str = Header(default="system", alias="X-Actor"),
     session: Session = Depends(db.get_db),
 ):
